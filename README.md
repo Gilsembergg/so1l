@@ -15,20 +15,30 @@ The project explores the engineering principles behind reliable sensor instrumen
 - Implement wireless communication and structured telemetry.
 - Provide a foundation for external data collection, storage, and analysis.
 
-## Hardware
+## Hardware Components
 
 The initial hardware configuration consists of:
 
-| Component | Purpose |
-|---|---|
-| ESP32-C3 | Main microcontroller |
-| DS18B20 | Temperature sensing |
-| Capacitive Soil Moisture Sensor v1.2 | Soil moisture sensing |
-| SSD1306 OLED (0.96") | Local data visualization |
+| Component | Specification | Purpose |
+|---|---|---|
+| Microcontroller | ESP32-C3 Super Mini (USB-C) | Main processing and control unit |
+| Temperature Sensor | DS18B20 Waterproof | Soil temperature measurement |
+| Soil Moisture Sensor | Capacitive Soil Moisture Sensor v1.2 | Soil moisture measurement |
+| Display | 0.96" SSD1306 OLED (I²C) | Local measurement visualization |
+| Resistor | 4.7 kΩ | DS18B20 pull-up resistor |
+| Prototyping Board | 830-point breadboard | Circuit assembly and prototyping |
+| Jumper Wires | Male-to-male, male-to-female, female-to-female | Electrical connections |
 
-Additional electronic components support sensor interfacing and prototyping.
+### Optional Components
 
-## Software
+| Component | Specification | Purpose |
+|---|---|---|
+| Status LEDs | Green, yellow, and red LEDs | Visual indication of system states |
+| Current-Limiting Resistors | 330 Ω (one per LED) | Limit LED current and protect GPIO pins |
+
+The optional status LEDs are intended to provide visual feedback about system operation, connectivity, and measurement status. Their exact state assignments will be defined during firmware development.
+
+## Software and Development Tools
 
 | Technology | Purpose |
 |---|---|
