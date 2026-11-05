@@ -1,1 +1,132 @@
 # So1l
+
+**An embedded soil sensing and environmental data acquisition module.**
+
+So1l is an experimental embedded systems project focused on soil sensing, environmental data acquisition, and measurement processing. Built around the ESP32-C3 and programmed in C, the module is designed to collect, process, validate, and transmit soil-related measurements.
+
+The project explores the engineering principles behind reliable sensor instrumentation, modular firmware architecture, measurement calibration, and structured telemetry for scientific and research applications.
+
+## Objectives
+
+- Develop modular and maintainable embedded firmware in C.
+- Implement reliable acquisition of soil-related measurements.
+- Establish structured measurement representation and timestamping.
+- Explore sensor calibration and data validation techniques.
+- Implement wireless communication and structured telemetry.
+- Provide a foundation for external data collection, storage, and analysis.
+
+## Hardware
+
+The initial hardware configuration consists of:
+
+| Component | Purpose |
+|---|---|
+| ESP32-C3 | Main microcontroller |
+| DS18B20 | Temperature sensing |
+| Capacitive Soil Moisture Sensor v1.2 | Soil moisture sensing |
+| SSD1306 OLED (0.96") | Local data visualization |
+
+Additional electronic components support sensor interfacing and prototyping.
+
+## Software
+
+| Technology | Purpose |
+|---|---|
+| C | Firmware development |
+| ESP-IDF | Embedded development framework |
+| PlatformIO | Build system and development environment |
+| Python | Planned external data processing and analysis |
+
+## Architecture
+
+The firmware is designed around modular components with clearly defined responsibilities.
+
+```text
+So1l
+│
+├── measurements/
+│   ├── measurement
+│   ├── temperature
+│   ├── moisture
+│   └── timestamp
+│
+├── network/
+│   ├── network
+│   ├── wifi
+│   └── telemetry
+│
+├── display/
+│
+├── system/
+│
+└── main.c
+```
+
+The architecture aims to maintain separation between sensor acquisition, measurement management, communication, and local visualization.
+
+This modular approach allows individual components to be developed, tested, and maintained independently.
+
+## Data Acquisition Workflow
+
+The intended data acquisition pipeline follows these stages:
+
+```text
+Physical Sensors
+       |
+       v
+Sensor Acquisition
+       |
+       v
+Measurement Representation
+       |
+       v
+Data Validation
+       |
+       v
+Calibration & Processing
+       |
+       v
+Structured Telemetry
+       |
+       v
+Data Transmission
+       |
+       v
+External Analysis
+```
+
+## Development Roadmap
+
+- [ ] **Phase 1 — Repository and Architecture:** Establish repository structure, documentation, and firmware foundations.
+- [ ] **Phase 2 — Sensor Acquisition:** Implement temperature and soil moisture acquisition.
+- [ ] **Phase 3 — Measurement Management:** Develop structured measurements and timestamping.
+- [ ] **Phase 4 — Data Processing:** Implement validation and experimental sensor calibration.
+- [ ] **Phase 5 — Local Visualization:** Integrate the OLED display.
+- [ ] **Phase 6 — Wireless Telemetry:** Implement Wi-Fi connectivity and structured data transmission.
+- [ ] **Phase 7 — Data Collection:** Develop external data ingestion and persistence.
+- [ ] **Phase 8 — Data Analysis:** Explore statistical analysis and visualization of acquired measurements.
+
+## Engineering Focus
+
+So1l provides a practical environment for exploring:
+
+- Embedded systems and microcontroller programming.
+- C programming and modular software architecture.
+- Sensor interfacing and hardware communication.
+- Scientific instrumentation and data acquisition.
+- Measurement calibration and signal processing.
+- Data validation and reliability.
+- Wireless communication and telemetry.
+- Scientific data analysis and reproducibility.
+
+## Project Philosophy
+
+So1l prioritizes engineering fundamentals, measurement reliability, and reproducibility over feature quantity.
+
+The objective is not simply to obtain sensor readings, but to develop a well-structured instrumentation module capable of producing meaningful, documented, and reusable measurement data.
+
+The project is independently developed and intended to remain applicable to different scientific and engineering contexts.
+
+## License
+
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
