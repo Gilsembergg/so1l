@@ -1,431 +1,251 @@
-# So1l
+# So1l — Development Branch
 
-**An embedded soil sensing and environmental data acquisition module.**
+> **An embedded soil sensing and environmental data acquisition module built with C and ESP32-C3, designed for scientific instrumentation and research applications.**
 
-So1l is an experimental embedded systems project focused on soil sensing, environmental data acquisition, and measurement processing. Built around the ESP32-C3 and programmed in C, the module is designed to acquire, process, validate, and transmit soil-related measurements.
+`develop` is the active integration branch of So1l. It contains ongoing firmware development, hardware integration, and documentation changes. It is intended for contributors and testers following the implementation as it evolves.
 
-The project explores the engineering principles behind sensor interfacing, modular firmware architecture, measurement calibration, data validation, and structured telemetry for scientific and research applications.
+This branch is not a stable release. Features may be incomplete, hardware-dependent, or not yet validated on the physical prototype.
 
-## Objectives
+---
 
-- Develop modular and maintainable embedded firmware in C.
-- Implement temperature and soil moisture acquisition.
-- Establish structured measurement representation and timestamping.
-- Explore sensor calibration, signal processing, and data validation.
-- Implement local measurement visualization.
-- Develop wireless communication and structured telemetry.
-- Provide a foundation for external data collection, storage, and analysis.
-- Document hardware connections, firmware interfaces, and measurement procedures to support reproducibility.
+## Project Overview
 
-## Hardware Components
+So1l is an experimental embedded systems project for acquiring and presenting soil-related measurements. The initial prototype uses:
 
-### Core Hardware
+- ESP32-C3 Super Mini (USB-C)
+- DS18B20 waterproof digital temperature sensor
+- Capacitive Soil Moisture Sensor v1.2
+- SSD1306 OLED display over I²C
+- Optional GPIO-driven status LEDs
+- Wi-Fi-based measurement publishing
 
-The initial hardware configuration consists of:
+The firmware is written in **C**, uses **ESP-IDF**, and is built through **PlatformIO**.
 
-| Component | Specification | Purpose |
+So1l emphasizes reliable acquisition, explicit measurement validity, modular firmware, and reproducible hardware testing. It is an independent instrumentation module—not a complete agricultural monitoring platform.
+
+## Development Status
+
+This table separates application behavior represented in the code from capabilities that still require subsystem-level or physical validation.
+
+| Area | Development status |
+|---|---|
+| ESP32-C3 firmware | Project configured for ESP-IDF through PlatformIO |
+| Application orchestration | Initialization and periodic measurement flow present |
+| Measurement representation | Measurement structure and per-reading validity fields used by the application |
+| Status indicators | Startup, normal, degraded, and critical states represented in application logic |
+| OLED display | Initialization, measurement display, and unavailable-display handling integrated in the application flow |
+| Soil temperature | DS18B20 acquisition integrated through the measurement subsystem; physical communication and reliability require validation |
+| Soil moisture | Raw ADC and derived percentage validity represented; calibration and repeatability require hardware testing |
+| Network publishing | Application invokes the network publishing interface; delivery guarantees and offline behavior require verification |
+| Scientific calibration | No validated calibration procedure is claimed by this branch |
+
+**A successful build proves that the code compiles for the selected PlatformIO environment. It does not prove that wiring, sensor communication, ADC readings, calibration, display, or network behavior work correctly on the physical prototype.**
+
+## Hardware
+
+### Core prototype
+
+| Component | Interface | Purpose |
 |---|---|---|
-| Microcontroller | ESP32-C3 Super Mini (USB-C) | Main processing and control unit |
-| Temperature Sensor | DS18B20 Waterproof | Soil temperature measurement |
-| Soil Moisture Sensor | Capacitive Soil Moisture Sensor v1.2 | Analog soil moisture measurement |
-| Display | 0.96" SSD1306 OLED (I²C) | Local measurement visualization |
-| Pull-up Resistor | 4.7 kΩ | DS18B20 1-Wire data-line pull-up |
+| ESP32-C3 Super Mini | MCU | Main processing and control |
+| DS18B20 waterproof sensor | 1-Wire | Soil temperature acquisition |
+| Capacitive Soil Moisture Sensor v1.2 | Analog output → ADC | Soil-moisture-related signal acquisition |
+| 0.96-inch SSD1306 OLED | I²C | Local measurement display |
+| 4.7 kΩ resistor | Pull-up | DS18B20 data-line pull-up |
 
-### Optional Components and Prototyping
+Optional components include green/yellow/red status LEDs, one 330 Ω current-limiting resistor per LED, a breadboard, and jumper wires. The breadboard is a prototyping choice, not a firmware requirement.
 
-| Component | Specification | Purpose |
-|---|---|---|
-| Status LEDs | Green, yellow, and red LEDs | Visual indication of system states |
-| Current-Limiting Resistors | 330 Ω (one per LED) | Limit current through each LED |
-| Prototyping Board | 830-point breadboard | Circuit assembly and prototyping |
+### Hardware interfaces
 
-The status LEDs are intended to provide visual feedback about system operation, connectivity, and measurement status. Their exact state assignments will be defined during firmware development.
+**DS18B20 — 1-Wire**
 
-The breadboard is an assembly choice rather than a requirement of the firmware. The initial prototype uses an 830-point breadboard, but other options can be considered, including prototyping PCBs and custom-designed printed circuit boards.
+- `VDD` → 3.3 V
+- `GND` → common ground
+- `DQ` → configured GPIO
+- 4.7 kΩ pull-up between `DQ` and 3.3 V
 
-3D models for an electronics enclosure and housing may be added to the repository in a future development stage.
+The DS18B20 is digital; its reading does not use the ESP32-C3 ADC.
 
-## Hardware Interfaces and Firmware Integration
+**Capacitive moisture sensor — ADC**
 
-The ESP32-C3 communicates with the sensors and peripheral components through dedicated hardware interfaces. Each interface is handled by a corresponding firmware module, keeping hardware-level operations separate from measurement processing and application logic.
+- `VCC` → intended 3.3 V supply
+- `GND` → common ground
+- `AOUT` → ADC-capable GPIO
 
-### 1. DS18B20 — Temperature Acquisition
+The ESP32-C3 samples the analog output using its ADC. Raw ADC counts are not a universal moisture percentage. A meaningful estimate requires calibration with the actual sensor and documented reference conditions. Confirm that the output voltage remains within the ESP32-C3 input limits.
 
-**Communication interface:** 1-Wire digital protocol.
+**SSD1306 — I²C**
 
-The DS18B20 communicates with the ESP32-C3 through a single data line. The sensor uses a digital protocol, so its temperature reading does not require an ADC input.
+- `VCC` → 3.3 V, subject to the breakout specifications
+- `GND` → common ground
+- `SDA` → configured I²C SDA GPIO
+- `SCL` → configured I²C SCL GPIO
 
-**Electrical connections:**
+`0x3C` is common for SSD1306 modules, but the address must be confirmed on the actual display.
 
-| DS18B20 Pin | ESP32-C3 / Circuit |
+**Status LEDs — GPIO**
+
+Each LED needs its own series current-limiting resistor. GPIO assignments must be checked against the exact ESP32-C3 Super Mini pinout and any boot-strapping, USB, serial-console, or peripheral constraints.
+
+> **Pin assignments are board-specific.** Do not assume a generic ESP32-C3 development-board mapping applies to every ESP32-C3 Super Mini. Confirm the physical board pinout and firmware configuration before wiring.
+
+All peripherals must share a common ground with the microcontroller.
+
+## Firmware Behavior
+
+At the application level, the firmware follows this general sequence:
+
+1. Initialize status indicators and run their startup indication.
+2. Initialize the display.
+3. Initialize the measurement subsystem.
+4. Initialize the network interface.
+5. Enter the periodic measurement loop.
+6. Read a measurement record.
+7. Evaluate measurement validity.
+8. Update indicators and, when available, the OLED.
+9. Pass the measurement to the network publishing interface.
+10. Wait before the next acquisition cycle.
+
+The application defines a nominal measurement interval of **5 seconds**. This is not a guarantee of exact five-second sampling: execution time and scheduling affect the actual period.
+
+If OLED initialization fails, the application can continue without the display and periodically retry initialization. The retry interval is defined as six measurement cycles.
+
+### Device state
+
+The application derives a high-level state from measurement validity:
+
+- **Critical:** temperature and raw moisture acquisition are both invalid.
+- **Degraded:** at least one required reading is invalid, or the derived moisture percentage is invalid.
+- **Normal:** temperature, raw moisture, and moisture percentage are all valid.
+
+These states describe the application's current validity assessment. They are not a complete hardware-health diagnostic system.
+
+### Measurement integrity
+
+So1l distinguishes raw acquisition, derived or calibrated values, and validity information. Raw ADC readings should remain separate from calibrated moisture estimates. Invalid readings should remain explicitly invalid rather than being silently replaced with plausible-looking values.
+
+## Software Architecture
+
+| Component | Responsibility |
 |---|---|
-| VDD | 3.3 V |
-| GND | GND |
-| DQ | Configured GPIO |
-| Pull-up | 4.7 kΩ between DQ and 3.3 V |
+| Application entry point | Coordinates initialization and the acquisition cycle |
+| Measurement subsystem | Collects and organizes sensor measurements |
+| Temperature driver | Handles DS18B20 communication and temperature acquisition |
+| Moisture acquisition | Samples the analog output and derives moisture-related values |
+| Display subsystem | Presents measurements and device state on the OLED |
+| Indicators subsystem | Controls status LEDs |
+| Network subsystem | Provides the application-facing measurement publishing interface |
+| Wi-Fi support | Supports wireless connectivity |
 
-The 4.7 kΩ resistor provides the pull-up required by the 1-Wire data bus. The sensor and microcontroller must share a common ground.
+The application layer should coordinate components without absorbing their hardware-specific implementation. Sensor acquisition should not depend on the display or network being available.
 
-**Firmware responsibilities:**
+See [`ARCHITECTURE.md`](ARCHITECTURE.md) for module boundaries and implementation details.
 
-The `temperature` module will handle:
+## Build and Run
 
-- Initializing the 1-Wire communication interface.
-- Detecting and communicating with the sensor.
-- Requesting temperature conversions.
-- Reading the returned temperature value.
-- Handling communication errors and invalid readings.
-- Exposing temperature measurements to the measurement management layer.
+### Requirements
 
-Temperature acquisition should account for the sensor's conversion time and configured resolution. Failed communication must be reported as an acquisition error rather than silently treated as a valid temperature.
+- ESP32-C3 development board
+- USB data cable
+- Visual Studio Code with PlatformIO, or PlatformIO Core CLI
+- PlatformIO-installed toolchain and ESP-IDF dependencies
 
-### 2. Capacitive Soil Moisture Sensor — Analog Acquisition
+### Build
 
-**Communication interface:** Analog voltage through the ESP32-C3 ADC.
+From the repository root:
 
-The capacitive moisture sensor produces an analog output voltage related to the surrounding soil conditions. The ESP32-C3's Analog-to-Digital Converter (ADC) samples this voltage and converts it into a digital value that firmware can process.
-
-**Electrical connections:**
-
-| Sensor Pin | ESP32-C3 / Circuit |
-|---|---|
-| VCC | 3.3 V |
-| GND | GND |
-| AOUT | Configured ADC-capable GPIO |
-
-Powering the sensor from 3.3 V is the intended initial configuration. The analog output must remain within the ESP32-C3's permitted input voltage range. Never connect an output that may exceed the microcontroller's electrical limits directly to an ADC pin.
-
-**Firmware responsibilities:**
-
-The `moisture` module will handle:
-
-- Configuring the appropriate ADC unit and channel.
-- Sampling the sensor's analog output.
-- Handling raw ADC readings.
-- Applying ADC calibration where supported.
-- Filtering or averaging samples to reduce measurement noise.
-- Exposing processed readings to the measurement management layer.
-
-Raw ADC values are not automatically equivalent to soil moisture percentages. Meaningful moisture estimates require experimental calibration using the actual sensor and representative soil conditions.
-
-A calibration procedure should record sensor readings under defined reference conditions, such as dry and sufficiently saturated soil. Calibration values and conversion logic should be documented rather than assuming a universal voltage-to-moisture relationship.
-
-### 3. SSD1306 OLED — Local Visualization
-
-**Communication interface:** I²C.
-
-The SSD1306 display communicates with the ESP32-C3 through the I²C bus, using two signal lines:
-
-- **SDA:** Serial Data.
-- **SCL:** Serial Clock.
-
-**Electrical connections:**
-
-| OLED Pin | ESP32-C3 / Circuit |
-|---|---|
-| VCC | 3.3 V |
-| GND | GND |
-| SDA | Configured I²C SDA GPIO |
-| SCL | Configured I²C SCL GPIO |
-
-The display's I²C address must be confirmed for the specific module. Common SSD1306 modules use address `0x3C`, although this should be verified during hardware initialization.
-
-**Firmware responsibilities:**
-
-The `display` module will handle:
-
-- Initializing the I²C master bus.
-- Configuring and communicating with the display.
-- Rendering measurement values and system information.
-- Updating the display without taking responsibility for sensor acquisition.
-- Handling display initialization and communication failures.
-
-The display should consume measurement data from the measurement management layer. It should not independently read the sensors.
-
-### 4. Status LEDs — System State Indication
-
-**Communication interface:** Digital GPIO output.
-
-Each LED is controlled by an ESP32-C3 GPIO configured as a digital output.
-
-**Electrical connections:**
-
-Each LED must have its own 330 Ω current-limiting resistor connected in series. The LED polarity must be respected:
-
-- Anode: connected toward the GPIO output through the resistor.
-- Cathode: connected toward GND.
-
-The exact GPIO assignments and LED state definitions will be documented after validating the selected ESP32-C3 board's pinout and checking for conflicts with other peripherals or programming interfaces.
-
-**Firmware responsibilities:**
-
-A system-status module will control the LEDs and provide visual indications of selected operating states, such as:
-
-- System initialization.
-- Successful sensor acquisition.
-- Measurement or sensor errors.
-- Network connectivity.
-
-The meaning of each LED state should be explicitly defined in the firmware documentation.
-
-## Electrical and Pin Configuration Notes
-
-All components must share a common ground with the ESP32-C3.
-
-GPIO assignments are board-dependent and should not be assumed from generic ESP32 examples. Before finalizing the wiring, verify the exact ESP32-C3 Super Mini board pinout, ADC-capable pins, and any GPIO restrictions.
-
-The firmware should centralize hardware pin assignments in a configuration header instead of scattering GPIO numbers throughout the source code. This makes the hardware configuration easier to review and modify.
-
-Additional considerations:
-
-- Verify the operating voltage and signal levels of every peripheral.
-- Check whether the OLED breakout already includes I²C pull-up resistors.
-- Keep the DS18B20 4.7 kΩ pull-up connected between its data line and 3.3 V.
-- Avoid assigning a GPIO to multiple peripherals unless the hardware design explicitly supports it.
-- Keep sensor wiring stable and avoid unnecessarily long analog signal connections.
-- Validate the ADC input range before connecting the moisture sensor.
-
-## Software and Development Tools
-
-| Technology | Purpose |
-|---|---|
-| C | Firmware development |
-| ESP-IDF | ESP32-C3 embedded development framework and peripheral drivers |
-| PlatformIO | Project configuration, build, upload, and serial monitoring |
-| Python | Planned external data processing and analysis |
-| Git / GitHub | Version control, documentation, and project collaboration |
-
-The firmware is developed in C using ESP-IDF. PlatformIO provides the development workflow and project configuration.
-
-ESP-IDF provides peripheral drivers for GPIO, ADC, I²C, Wi-Fi, and other microcontroller functionality. Hardware-specific operations should use these interfaces rather than being implemented directly inside the application entry point.
-
-## Firmware Architecture
-
-The firmware is organized into modular components with clearly defined responsibilities. The intended architecture separates hardware acquisition, measurement management, communication, visualization, and system-level coordination.
-
-```text
-So1l/
-│
-├── include/
-│   ├── measurements/
-│   │   ├── measurement.h
-│   │   ├── temperature.h
-│   │   ├── moisture.h
-│   │   └── timestamp.h
-│   │
-│   ├── network/
-│   │   ├── network.h
-│   │   ├── wifi.h
-│   │   └── telemetry.h
-│   │
-│   ├── display/
-│   │   └── display.h
-│   │
-│   └── system/
-│       ├── system.h
-│       └── config.h
-│
-├── src/
-│   ├── measurements/
-│   │   ├── measurement.c
-│   │   ├── temperature.c
-│   │   ├── moisture.c
-│   │   └── timestamp.c
-│   │
-│   ├── network/
-│   │   ├── network.c
-│   │   ├── wifi.c
-│   │   └── telemetry.c
-│   │
-│   ├── display/
-│   │   └── display.c
-│   │
-│   ├── system/
-│   │   └── system.c
-│   │
-│   └── main.c
-│
-├── docs/
-│   ├── ARCHITECTURE.md
-│   ├── HARDWARE.md
-│   └── CALIBRATION.md
-│
-├── platformio.ini
-├── CMakeLists.txt
-├── README.md
-└── LICENSE
+```bash
+pio run -d firmware
 ```
 
-This is a proposed organizational structure. Files and modules should be introduced as their responsibilities are implemented, rather than creating empty modules solely to match the diagram.
+### Upload
 
-### Module Responsibilities
+Connect the board and select the correct serial port:
 
-| Module | Responsibility |
-|---|---|
-| `main.c` | Application entry point and high-level initialization |
-| `system/` | System configuration, initialization, and coordination |
-| `temperature` | DS18B20 communication and temperature acquisition |
-| `moisture` | ADC configuration, analog sampling, and moisture acquisition |
-| `measurement` | Measurement data structures, organization, and validation |
-| `timestamp` | Measurement timestamps and time-source management |
-| `display` | OLED initialization and local visualization |
-| `wifi` | Wi-Fi initialization, connection, and connection state |
-| `telemetry` | Serialization and formatting of measurement data |
-| `network` | Coordination of communication and data transmission |
-
-Each public module should expose its interface through a `.h` header and implement its functionality in a corresponding `.c` source file.
-
-The header declares what other modules can use; the source file contains how that functionality is implemented.
-
-### Separation of Responsibilities
-
-The firmware should follow a clear dependency flow:
-
-- Sensor modules communicate with physical hardware and return readings or errors.
-- The measurement layer organizes readings into consistent data structures.
-- Validation and calibration logic process acquired measurements.
-- The display consumes measurements for local visualization.
-- The telemetry layer converts measurements into a structured representation.
-- The Wi-Fi module manages the wireless connection.
-- The network layer coordinates data transmission.
-- `main.c` initializes and coordinates the application rather than containing the implementation of every feature.
-
-This separation reduces coupling between components and makes individual modules easier to test, replace, and maintain.
-
-## Data Acquisition and Processing Workflow
-
-The intended measurement pipeline follows these stages:
-
-```text
-Physical Sensors
-       |
-       v
-Hardware Interfaces
-(1-Wire / ADC)
-       |
-       v
-Sensor Acquisition
-       |
-       v
-Measurement Representation
-       |
-       v
-Data Validation
-       |
-       v
-Calibration & Processing
-       |
-       v
-Structured Telemetry
-       |
-       v
-Wireless Transmission
-       |
-       v
-External Data Collection
-       |
-       v
-Storage and Analysis
+```bash
+pio run -d firmware -t upload
 ```
 
-The OLED display and status indicators provide local feedback and operate alongside this pipeline.
+If automatic port detection fails, configure the upload port in `firmware/platformio.ini` or use the appropriate PlatformIO upload-port option.
 
-### Measurement Representation
+### Serial monitor
 
-Measurements should be represented consistently before they are displayed, processed, or transmitted.
+```bash
+pio device monitor -d firmware -b 115200
+```
 
-A measurement record may eventually contain:
+The configured monitor speed is 115200 baud. Check the board's USB/UART and console configuration if no output appears.
 
-- Soil temperature.
-- Raw soil moisture ADC reading.
-- Calibrated soil moisture estimate, when available.
-- Measurement timestamp.
-- Acquisition status or validity information.
+### Board configuration warning
 
-Raw sensor readings should remain distinguishable from calibrated or derived values. This preserves traceability and allows later analysis to revisit the calibration process.
+The PlatformIO environment uses the generic `esp32-c3-devkitm-1` board definition, while the physical prototype is an ESP32-C3 Super Mini. These may not have identical layouts. Verify flash settings, USB/serial behavior, GPIO mapping, ADC-capable pins, and peripheral conflicts.
 
-### Timestamping
+A successful compile with a generic board profile does not validate the physical board pinout.
 
-Measurement timestamps should use a consistent time standard, preferably UTC.
+## Hardware Validation Checklist
 
-When network connectivity is available, the system can synchronize its clock using SNTP. Until a valid synchronization has occurred, monotonic uptime can be used to track elapsed time.
+- [ ] Confirm the exact ESP32-C3 board variant and pinout.
+- [ ] Verify 3.3 V and common-ground connections.
+- [ ] Confirm DS18B20 presence detection and communication.
+- [ ] Validate scratchpad data and CRC handling, where implemented.
+- [ ] Compare temperature readings against a reasonable reference.
+- [ ] Confirm moisture ADC readings change under controlled conditions.
+- [ ] Record raw ADC values for documented dry and wet reference conditions.
+- [ ] Establish and document calibration before interpreting readings as percentages.
+- [ ] Confirm OLED I²C address and stable rendering.
+- [ ] Verify LED polarity, resistors, and GPIO assignments.
+- [ ] Test behavior when a sensor is disconnected or returns invalid data.
+- [ ] Verify Wi-Fi connection and actual delivery to the intended receiver.
+- [ ] Record test conditions, limitations, and measurement instability.
 
-The firmware should distinguish a synchronized wall-clock timestamp from an uptime-based timestamp so that measurements are not incorrectly presented as having a verified date and time.
+Do not mark a feature as hardware-validated solely because the firmware compiles or reaches its main loop.
 
-### Validation and Calibration
+## Known Limitations and Work in Progress
 
-Validation and calibration are separate responsibilities:
+Treat the following as active development or validation work unless accompanied by test evidence:
 
-- **Validation** checks whether a reading is available, within expected bounds, and suitable for further processing.
-- **Calibration** establishes the relationship between sensor output and a meaningful physical measurement under documented reference conditions.
+- DS18B20 communication and temperature-reading reliability on the physical prototype.
+- Moisture-sensor calibration and repeatability across soil conditions.
+- Accuracy and timing of the complete acquisition cycle.
+- OLED and GPIO behavior across resets and peripheral failures.
+- Network delivery behavior, including disconnects, retries, and recovery.
+- Telemetry format, receiver integration, and data persistence.
+- Long-duration operation and measurement stability.
 
-The firmware should preserve raw readings and report acquisition failures explicitly. Filtering, averaging, and calibration should be documented so that the resulting measurements can be interpreted and reproduced.
+The presence of a network publishing function does not imply guaranteed delivery, buffering, persistence, or lossless operation.
 
-## Network and Telemetry
+## Development Workflow
 
-Wireless communication is planned through the ESP32-C3's Wi-Fi capabilities.
+`develop` is the integration branch for ongoing work. A practical workflow is:
 
-The network functionality will be separated into connection management, data formatting, and transmission. This prevents sensor drivers from depending on network availability.
+```text
+main
+└── develop
+    ├── feature/ds18b20-validation
+    ├── feature/moisture-adc
+    ├── feature/display-reliability
+    └── feature/network-telemetry
+```
 
-The telemetry layer will be responsible for converting measurement records into a structured format suitable for external systems. JSON is a possible initial format, while the transport protocol will be selected during implementation.
+Use focused branches when a change benefits from isolated implementation and testing. Merge completed work into `develop` after reviewing the code and recording relevant test results. Keep `main` for stable, documented milestones.
 
-Network credentials must be kept outside public source code and excluded from version control.
+Example commit messages:
 
-The initial communication design should account for:
+```text
+docs: clarify hardware interface requirements
+test: add DS18B20 communication validation
+fix: handle invalid temperature readings
+feat: improve moisture ADC acquisition
+docs: record prototype validation results
+```
 
-- Connection and disconnection states.
-- Transmission failures and timeouts.
-- Measurement timestamps and validity.
-- Consistent field names and units.
-- Reconnection behavior.
-- Avoiding loss or misrepresentation of measurements when connectivity is unavailable.
+## Project Goals
 
-## Development Roadmap
+The ongoing work aims to establish reliable temperature and soil-moisture-related acquisition, explicit measurement validity, traceable raw readings, documented calibration, maintainable C firmware, local visualization, structured wireless publishing, and reproducible hardware testing.
 
-- [ ] **Phase 1 — Repository and Architecture:** Establish repository structure, documentation, and firmware foundations.
-- [ ] **Phase 2 — Hardware Initialization:** Validate power, GPIO assignments, and peripheral connections.
-- [ ] **Phase 3 — Sensor Acquisition:** Implement DS18B20 communication and soil moisture ADC sampling.
-- [ ] **Phase 4 — Measurement Management:** Develop measurement structures, timestamping, and acquisition status handling.
-- [ ] **Phase 5 — Data Processing:** Implement validation, filtering, and experimental sensor calibration.
-- [ ] **Phase 6 — Local Visualization:** Integrate the SSD1306 OLED and status LEDs.
-- [ ] **Phase 7 — Wireless Telemetry:** Implement Wi-Fi connectivity, structured serialization, and data transmission.
-- [ ] **Phase 8 — Data Collection:** Develop external data ingestion and persistence.
-- [ ] **Phase 9 — Data Analysis:** Explore statistical analysis and visualization of acquired measurements.
-- [ ] **Phase 10 — Enclosure and Documentation:** Develop enclosure models and improve hardware assembly documentation.
-
-## Engineering Focus
-
-So1l provides a practical environment for exploring:
-
-- Embedded systems and microcontroller programming.
-- C programming and modular software architecture.
-- Digital and analog sensor interfacing.
-- ADC configuration and signal acquisition.
-- GPIO and I²C peripheral communication.
-- Scientific instrumentation and data acquisition.
-- Measurement calibration and signal processing.
-- Data validation and measurement reliability.
-- Wireless communication and telemetry.
-- Scientific data analysis and reproducibility.
-- Hardware documentation and prototyping.
-
-## Project Philosophy
-
-So1l prioritizes engineering fundamentals, measurement reliability, and reproducibility over feature quantity.
-
-The objective is not simply to obtain sensor readings, but to develop a well-structured instrumentation module capable of producing meaningful, documented, and reusable measurement data.
-
-The project is independently developed and intended to remain applicable to different scientific and engineering contexts.
-
-## Technical References
-
-- [ESP32-C3 Technical Reference and Datasheet](https://www.espressif.com/en/products/socs/esp32-c3/resources)
-- [ESP-IDF Programming Guide — ESP32-C3](https://docs.espressif.com/projects/esp-idf/en/latest/esp32c3/)
-- [ESP-IDF ADC Driver — ESP32-C3](https://docs.espressif.com/projects/esp-idf/en/latest/esp32c3/api-reference/peripherals/adc.html)
-- [ESP-IDF I²C Driver — ESP32-C3](https://docs.espressif.com/projects/esp-idf/en/stable/esp32c3/api-reference/peripherals/i2c.html)
-- [Analog Devices — DS18B20 Datasheet](https://www.analog.com/media/en/technical-documentation/data-sheets/DS18B20.pdf)
-- [PlatformIO Documentation](https://docs.platformio.org/)
+The priority is trustworthy, interpretable measurement data—not feature count.
 
 ## License
 
-This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+So1l is distributed under the MIT License. See [`LICENSE`](LICENSE).
+"""
